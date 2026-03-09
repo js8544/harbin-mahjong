@@ -68,6 +68,7 @@ export type GameState = {
   phase: TurnPhase
   currentDrawnTile: Tile | null
   currentPrompt: PendingPrompt | null
+  claimQueue: PendingPrompt[]
   lastDiscard: {
     tile: Tile
     playerId: PlayerId

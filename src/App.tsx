@@ -14,7 +14,7 @@ import {
 import { tileLabel, tileVisual } from './game/tiles'
 import type { PendingPromptAction } from './game/types'
 
-const AI_DELAY_MS = 550
+const AI_DELAY_MS = 500
 
 function App() {
   const [game, setGame] = useState(() => createInitialGameState())
@@ -24,17 +24,52 @@ function App() {
 
   const statusText = useMemo(() => {
     if (game.phase === 'notStarted') {
-      return 'Ready to start a Harbin Mahjong round.'
+      return 'Ready. Start a round to deal 13 tiles each.'
     }
+
     if (game.winner) {
       const winner = game.players[game.winner.winnerId]
-      return `${winner.name} won by ${game.winner.source}.`
+      const sourceText =
+        game.winner.source === 'self-draw'
+          ? 'by self-draw'
+          : `on discard from ${game.players[game.winner.sourcePlayerId ?? 0].name}`
+      return `${winner.name} won ${sourceText}.`
     }
+
     if (game.phase === 'roundOver') {
-      return 'Round ended in draw.'
+      return 'Round ended in draw. Start next round to continue.'
     }
+
     return `${currentPlayer.name} to act (${game.phase}).`
   }, [game, currentPlayer])
+
+  const nextStepHint = useMemo(() => {
+    if (game.phase === 'notStarted') {
+      return 'Press Start Round.'
+    }
+
+    if (game.winner || game.phase === 'roundOver') {
+      return 'Press Start Next Round to continue table rotation.'
+    }
+
+    if (game.currentPrompt?.playerId === human.id) {
+      if (game.phase === 'claimPrompt') {
+        return 'Respond to the discard claim prompt.'
+      }
+
+      return 'Choose WIN/KONG/PASS for your draw prompt.'
+    }
+
+    if (game.phase === 'draw' && currentPlayer.id === human.id) {
+      return 'Press Draw Tile.'
+    }
+
+    if (game.phase === 'discard' && currentPlayer.id === human.id) {
+      return 'Select one tile from your hand to discard.'
+    }
+
+    return 'AI is deciding.'
+  }, [game, currentPlayer, human.id])
 
   const doStartRound = () => {
     setGame((prev) => startRound(prev))
@@ -131,25 +166,23 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [game, currentPlayer])
 
-  const canHumanDraw =
-    game.phase === 'draw' &&
-    currentPlayer.id === human.id &&
-    !game.winner
-
+  const canHumanDraw = game.phase === 'draw' && currentPlayer.id === human.id && !game.winner
   const humanTurnToDiscard = game.phase === 'discard' && currentPlayer.id === human.id
   const humanPrompt =
     game.currentPrompt && game.currentPrompt.playerId === human.id ? game.currentPrompt : null
+
+  const mainCtaLabel = game.phase === 'notStarted' ? 'Start Round' : 'Start Next Round'
 
   return (
     <div className="app-shell">
       <header className="header">
         <div>
           <h1>Harbin Mahjong</h1>
-          <p className="subtitle">Local single-player table with 3 AI opponents</p>
+          <p className="subtitle">Single-player table vs 3 AI opponents</p>
         </div>
         <div className="header-actions">
           <button className="primary" onClick={doStartRound}>
-            {game.phase === 'notStarted' ? 'Start Game' : 'Start New Round'}
+            {mainCtaLabel}
           </button>
           <button onClick={doRestart}>Restart Session</button>
         </div>
@@ -160,10 +193,16 @@ function App() {
           <strong>Status:</strong> {statusText}
         </div>
         <div>
+          <strong>Hint:</strong> {nextStepHint}
+        </div>
+        <div>
           <strong>Round:</strong> {game.roundNumber}
         </div>
         <div>
           <strong>Turn:</strong> {game.turnNumber}
+        </div>
+        <div>
+          <strong>Dealer:</strong> {game.players[game.dealerId].name}
         </div>
         <div>
           <strong>Wall:</strong> {game.wall.length} / 136
@@ -181,7 +220,7 @@ function App() {
                 <h3>{player.name}</h3>
                 <span>{player.seatWind}</span>
               </div>
-              <p>Hand: {player.isHuman ? player.hand.length : `${player.hand.length} tiles`}</p>
+              <p>Hand: {player.hand.length} tiles</p>
               <p>Melds: {player.melds.length}</p>
               <p>Discards: {player.discards.length}</p>
               <div className="meld-row">
@@ -191,12 +230,21 @@ function App() {
                   </span>
                 ))}
               </div>
+              {player.discards.length > 0 && (
+                <div className="discard-row compact">
+                  {player.discards.slice(-8).map((tile) => (
+                    <span key={`pd-${tile.id}`} className="discard-pill" title={tileLabel(tile)}>
+                      {tileVisual(tile)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </article>
           ))}
         </section>
 
         <section className="center-panel">
-          <div className="panel">
+          <div className="panel action-panel">
             <h2>Action Area</h2>
             {canHumanDraw && (
               <button className="primary" onClick={doDraw}>
@@ -207,7 +255,7 @@ function App() {
             {humanPrompt && (
               <div className="prompt-box">
                 <p>
-                  Prompt: claim <strong>{tileLabel(humanPrompt.tile)}</strong>
+                  Action required on <strong>{tileLabel(humanPrompt.tile)}</strong>
                 </p>
                 <div className="prompt-actions">
                   {humanPrompt.actions.map((action) => (
@@ -219,17 +267,28 @@ function App() {
               </div>
             )}
 
+            {game.phase === 'claimPrompt' && !humanPrompt && (
+              <p className="passive-note">Waiting for AI claim resolution.</p>
+            )}
+
             {humanTurnToDiscard && <p>Select a tile in your hand to discard.</p>}
           </div>
 
           <div className="panel">
-            <h2>Last Discard</h2>
+            <h2>Table Feed</h2>
             {game.lastDiscard ? (
               <p>
-                {game.players[game.lastDiscard.playerId].name}: {tileLabel(game.lastDiscard.tile)}
+                Last discard: {game.players[game.lastDiscard.playerId].name} -{' '}
+                {tileLabel(game.lastDiscard.tile)}
               </p>
             ) : (
-              <p>None</p>
+              <p>No discard yet.</p>
+            )}
+            {game.currentPrompt && (
+              <p>
+                Pending prompt: {game.players[game.currentPrompt.playerId].name} on{' '}
+                {tileLabel(game.currentPrompt.tile)}
+              </p>
             )}
           </div>
 
@@ -260,6 +319,7 @@ function App() {
               </button>
             ))}
           </div>
+
           {human.discards.length > 0 && (
             <div>
               <h3>Your Discards</h3>
@@ -276,13 +336,14 @@ function App() {
       </main>
 
       <footer className="assumptions">
-        <h3>Rule Assumptions</h3>
+        <h3>Current Rule Model</h3>
         <ul>
-          <li>Win structure: 4 melds + 1 pair</li>
-          <li>No flower tiles</li>
-          <li>Chow only from next player's discard</li>
-          <li>Claim priority: Win &gt; Kong &gt; Pong &gt; Chow</li>
-          <li>Simplified result model (win/draw, no fan scoring table)</li>
+          <li>Standard hand win: 4 melds + 1 pair</li>
+          <li>No flower tiles; 136-tile wall</li>
+          <li>Discard claims resolve in priority order: Win &gt; Kong &gt; Pong &gt; Chow</li>
+          <li>Chow only from the next player</li>
+          <li>Dealer keeps seat if dealer wins; otherwise seat rotates clockwise</li>
+          <li>Simplified result model with no fan/point settlement table</li>
         </ul>
       </footer>
     </div>

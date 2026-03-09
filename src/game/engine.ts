@@ -2,6 +2,7 @@ import {
   canDeclareConcealedKong,
   canWinWithStandardHand,
   claimPriorityScore,
+  findChowPatterns,
   findDiscardClaimOptions,
   playerOrderDistance,
 } from './rules'
@@ -70,6 +71,28 @@ const addLog = (state: GameState, entry: string): GameState => ({
   log: [`T${state.turnNumber}: ${entry}`, ...state.log].slice(0, 80),
 })
 
+const bestActionRank = (prompt: PendingPrompt): number => {
+  const topAction = prompt.actions.reduce<PendingPromptAction>(
+    (best, current) =>
+      claimPriorityScore(current) > claimPriorityScore(best) ? current : best,
+    'pass',
+  )
+
+  return claimPriorityScore(topAction)
+}
+
+const resolveNextDealer = (prev: GameState): PlayerId => {
+  if (prev.roundNumber === 0) {
+    return prev.dealerId
+  }
+
+  if (prev.winner?.winnerId === prev.dealerId) {
+    return prev.dealerId
+  }
+
+  return nextPlayerId(prev.dealerId)
+}
+
 export const createInitialGameState = (): GameState => ({
   players: makePlayers(),
   wall: [],
@@ -78,6 +101,7 @@ export const createInitialGameState = (): GameState => ({
   phase: 'notStarted',
   currentDrawnTile: null,
   currentPrompt: null,
+  claimQueue: [],
   lastDiscard: null,
   roundNumber: 0,
   turnNumber: 0,
@@ -89,6 +113,7 @@ export const createInitialGameState = (): GameState => ({
 export const startRound = (prev: GameState): GameState => {
   const wall = shuffle(createWall())
   const players = makePlayers()
+  const nextDealerId = resolveNextDealer(prev)
 
   for (let pass = 0; pass < DEFAULT_ASSUMPTIONS.handSize; pass += 1) {
     for (let pid = 0; pid < players.length; pid += 1) {
@@ -110,16 +135,17 @@ export const startRound = (prev: GameState): GameState => {
     ...prev,
     players,
     wall,
-    currentPlayerId: prev.dealerId,
-    dealerId: prev.dealerId,
+    currentPlayerId: nextDealerId,
+    dealerId: nextDealerId,
     phase: 'draw',
     currentDrawnTile: null,
     currentPrompt: null,
+    claimQueue: [],
     lastDiscard: null,
     roundNumber,
     turnNumber: 1,
     winner: null,
-    log: [`Round ${roundNumber} started. ${players[prev.dealerId].name} is dealer.`],
+    log: [`Round ${roundNumber} started. ${players[nextDealerId].name} is dealer.`],
   }
 }
 
@@ -136,6 +162,8 @@ export const drawTile = (state: GameState): GameState => {
       wall,
       phase: 'roundOver',
       winner: null,
+      currentPrompt: null,
+      claimQueue: [],
       log: ['Round ended in draw (wall exhausted).', ...state.log],
     }
   }
@@ -151,6 +179,7 @@ export const drawTile = (state: GameState): GameState => {
     currentDrawnTile: draw,
     phase: 'discard',
     currentPrompt: null,
+    claimQueue: [],
   }
 
   nextState = addLog(nextState, `${currentPlayer.name} drew ${tileLabel(draw)}.`)
@@ -194,6 +223,7 @@ export const declareSelfDrawWin = (state: GameState): GameState => {
       source: 'self-draw',
       winningTile: state.currentPrompt.tile,
     },
+    claimQueue: [],
     log: [`${state.players[state.currentPlayerId].name} wins by self-draw!`, ...state.log],
   }
 }
@@ -229,16 +259,17 @@ export const declareConcealedKong = (state: GameState): GameState => {
       phase: 'draw',
       currentDrawnTile: null,
       currentPrompt: null,
+      claimQueue: [],
     },
     `${player.name} declared concealed kong (${tileLabel(tile)}).`,
   )
 }
 
-const buildDiscardClaimPrompt = (
+const buildDiscardClaimQueue = (
   state: GameState,
   discardedTile: Tile,
   discarderId: PlayerId,
-): PendingPrompt | null => {
+): PendingPrompt[] => {
   const candidates: PendingPrompt[] = []
 
   for (const player of state.players) {
@@ -278,17 +309,6 @@ const buildDiscardClaimPrompt = (
     })
   }
 
-  if (candidates.length === 0) {
-    return null
-  }
-
-  const bestActionRank = (prompt: PendingPrompt): number => {
-    const topAction = prompt.actions.reduce<PendingPromptAction>((best, current) =>
-      claimPriorityScore(current) > claimPriorityScore(best) ? current : best,
-    'pass')
-    return claimPriorityScore(topAction)
-  }
-
   candidates.sort((a, b) => {
     const scoreDiff = bestActionRank(b) - bestActionRank(a)
     if (scoreDiff !== 0) {
@@ -300,7 +320,7 @@ const buildDiscardClaimPrompt = (
     return distA - distB
   })
 
-  return candidates[0]
+  return candidates
 }
 
 export const discardTile = (state: GameState, tileId: string): GameState => {
@@ -321,7 +341,8 @@ export const discardTile = (state: GameState, tileId: string): GameState => {
   )
   currentPlayer.discards = [...currentPlayer.discards, tile]
 
-  const prompt = buildDiscardClaimPrompt(state, tile, state.currentPlayerId)
+  const claimQueue = buildDiscardClaimQueue(state, tile, state.currentPlayerId)
+  const prompt = claimQueue[0] ?? null
 
   let nextState: GameState = {
     ...state,
@@ -332,12 +353,26 @@ export const discardTile = (state: GameState, tileId: string): GameState => {
     },
     currentDrawnTile: null,
     currentPrompt: prompt,
+    claimQueue: prompt ? claimQueue.slice(1) : [],
     phase: prompt ? 'claimPrompt' : 'draw',
     currentPlayerId: prompt ? prompt.playerId : nextPlayerId(state.currentPlayerId),
     turnNumber: state.turnNumber + 1,
   }
 
   nextState = addLog(nextState, `${currentPlayer.name} discarded ${tileLabel(tile)}.`)
+
+  if (prompt) {
+    const topAction = prompt.actions.reduce<PendingPromptAction>(
+      (best, current) =>
+        claimPriorityScore(current) > claimPriorityScore(best) ? current : best,
+      'pass',
+    )
+
+    nextState = addLog(
+      nextState,
+      `${state.players[prompt.playerId].name} may claim (${topAction.toUpperCase()}) on ${tileLabel(tile)}.`,
+    )
+  }
 
   return nextState
 }
@@ -357,29 +392,13 @@ const claimTilesForMeld = (
     }
   }
 
-  const possiblePatterns = [
-    [discardedTile.rank - 2, discardedTile.rank - 1],
-    [discardedTile.rank - 1, discardedTile.rank + 1],
-    [discardedTile.rank + 1, discardedTile.rank + 2],
-  ]
-
-  for (const [a, b] of possiblePatterns) {
-    if (a < 1 || b > 9) {
-      continue
-    }
-
-    const ca = `${discardedTile.suit}-${a}`
-    const cb = `${discardedTile.suit}-${b}`
-    const ta = hand.find((tile) => tileCode(tile) === ca)
-    const tb = hand.find((tile) => tileCode(tile) === cb)
-    if (ta && tb) {
-      const remaining = hand.filter(
-        (tile) => tile.id !== ta.id && tile.id !== tb.id,
-      )
-      return {
-        tiles: [ta, discardedTile, tb],
-        nextHand: remaining,
-      }
+  const [pattern] = findChowPatterns(hand, discardedTile, true)
+  if (pattern) {
+    const [ta, tb] = pattern
+    const remaining = hand.filter((tile) => tile.id !== ta.id && tile.id !== tb.id)
+    return {
+      tiles: [ta, discardedTile, tb],
+      nextHand: remaining,
     }
   }
 
@@ -407,10 +426,25 @@ export const resolveClaim = (
   }
 
   if (action === 'pass') {
+    if (state.claimQueue.length > 0) {
+      const [nextPrompt, ...restQueue] = state.claimQueue
+
+      return addLog(
+        {
+          ...state,
+          currentPrompt: nextPrompt,
+          claimQueue: restQueue,
+          currentPlayerId: nextPrompt.playerId,
+        },
+        `${state.players[claimerId].name} passed on ${tileLabel(discardedTile)}.`,
+      )
+    }
+
     return addLog(
       {
         ...state,
         currentPrompt: null,
+        claimQueue: [],
         phase: 'draw',
         currentPlayerId: nextPlayerId(sourcePlayerId),
       },
@@ -429,6 +463,7 @@ export const resolveClaim = (
         sourcePlayerId,
       },
       currentPrompt: null,
+      claimQueue: [],
       log: [
         `${state.players[claimerId].name} won on discard from ${state.players[sourcePlayerId].name}!`,
         ...state.log,
@@ -453,6 +488,7 @@ export const resolveClaim = (
       ...state,
       players,
       currentPrompt: null,
+      claimQueue: [],
       currentPlayerId: claimerId,
       phase: action === 'kong' ? 'draw' : 'discard',
       currentDrawnTile: null,

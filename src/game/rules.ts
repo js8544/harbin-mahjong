@@ -20,6 +20,8 @@ const buildCounts = (tiles: Tile[]): TileCounts => {
   return counts
 }
 
+export const getTileCounts = (tiles: Tile[]): TileCounts => buildCounts(tiles)
+
 const toSortedCodes = (counts: TileCounts): string[] =>
   [...counts.keys()].sort((a, b) => {
     const aa = parseCode(a)
@@ -124,26 +126,51 @@ export const findDiscardClaimOptions = (
   }
 
   if (isNextPlayer && isSuited(discardedTile)) {
-    const needed = [
-      [discardedTile.rank - 2, discardedTile.rank - 1],
-      [discardedTile.rank - 1, discardedTile.rank + 1],
-      [discardedTile.rank + 1, discardedTile.rank + 2],
-    ]
-
-    for (const [a, b] of needed) {
-      if (a < 1 || b > 9) {
-        continue
-      }
-      const ca = `${discardedTile.suit}-${a}`
-      const cb = `${discardedTile.suit}-${b}`
-      if ((counts.get(ca) ?? 0) >= 1 && (counts.get(cb) ?? 0) >= 1) {
-        options.push('chow')
-        break
-      }
+    if (findChowPatterns(hand, discardedTile, true).length > 0) {
+      options.push('chow')
     }
   }
 
   return options
+}
+
+export const findChowPatterns = (
+  hand: Tile[],
+  discardedTile: Tile,
+  isNextPlayer: boolean,
+): Array<[Tile, Tile]> => {
+  if (!isNextPlayer || !isSuited(discardedTile)) {
+    return []
+  }
+
+  const possiblePatterns = [
+    [discardedTile.rank - 2, discardedTile.rank - 1],
+    [discardedTile.rank - 1, discardedTile.rank + 1],
+    [discardedTile.rank + 1, discardedTile.rank + 2],
+  ]
+
+  const patterns: Array<[Tile, Tile]> = []
+  for (const [a, b] of possiblePatterns) {
+    if (a < 1 || b > 9) {
+      continue
+    }
+
+    const ta = hand.find(
+      (tile) => tile.suit === discardedTile.suit && tile.rank === a,
+    )
+    const tb = hand.find(
+      (tile) =>
+        tile.suit === discardedTile.suit &&
+        tile.rank === b &&
+        tile.id !== ta?.id,
+    )
+
+    if (ta && tb) {
+      patterns.push([ta, tb])
+    }
+  }
+
+  return patterns
 }
 
 export const canDeclareConcealedKong = (hand: Tile[]): Tile | null => {
