@@ -264,3 +264,19 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+
+.tile-button.selected {
+  border-color: #0a6f79;
+  box-shadow: 0 0 0 3px rgba(10, 111, 121, 0.18);
+  transform: translateY(-2px);
+}
+
+.status-bar > div:last-child {
+  grid-column: span 3;
+}
+
+.prompt-box ul {
+  margin: 0.35rem 0;
+  padding-left: 1rem;
+}

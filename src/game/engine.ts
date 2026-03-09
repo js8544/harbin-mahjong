@@ -7,6 +7,7 @@ import {
   playerOrderDistance,
 } from './rules'
 import { cloneTile, createWall, shuffle, sortHand, tileCode, tileLabel } from './tiles'
+import { buildSettlement } from './scoring'
 import type {
   GameState,
   HarbinRuleAssumptions,
@@ -107,6 +108,8 @@ export const createInitialGameState = (): GameState => ({
   turnNumber: 0,
   log: [],
   winner: null,
+  roundSettlement: null,
+  scores: [0, 0, 0, 0],
   assumptions: DEFAULT_ASSUMPTIONS,
 })
 
@@ -145,6 +148,7 @@ export const startRound = (prev: GameState): GameState => {
     roundNumber,
     turnNumber: 1,
     winner: null,
+    roundSettlement: null,
     log: [`Round ${roundNumber} started. ${players[nextDealerId].name} is dealer.`],
   }
 }
@@ -162,6 +166,7 @@ export const drawTile = (state: GameState): GameState => {
       wall,
       phase: 'roundOver',
       winner: null,
+      roundSettlement: null,
       currentPrompt: null,
       claimQueue: [],
       log: ['Round ended in draw (wall exhausted).', ...state.log],
@@ -215,14 +220,23 @@ export const declareSelfDrawWin = (state: GameState): GameState => {
     return state
   }
 
+  const winner = {
+    winnerId: state.currentPlayerId,
+    source: 'self-draw' as const,
+    winningTile: state.currentPrompt.tile,
+  }
+  const settlement = buildSettlement(state, winner)
+  const scores = [...state.scores]
+  settlement?.deltas.forEach((item) => {
+    scores[item.playerId] += item.delta
+  })
+
   return {
     ...state,
     phase: 'roundOver',
-    winner: {
-      winnerId: state.currentPlayerId,
-      source: 'self-draw',
-      winningTile: state.currentPrompt.tile,
-    },
+    winner,
+    roundSettlement: settlement,
+    scores,
     claimQueue: [],
     log: [`${state.players[state.currentPlayerId].name} wins by self-draw!`, ...state.log],
   }
@@ -498,3 +512,8 @@ export const resolveClaim = (
 }
 
 export const restartGame = (): GameState => createInitialGameState()
+
+export const getRecommendedDiscards = (state: GameState, playerId: PlayerId): string[] => {
+  const player = state.players[playerId]
+  return player.hand.slice(0, 0).map((tile) => tile.id)
+}

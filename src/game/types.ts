@@ -50,6 +50,22 @@ export type WinInfo = {
   sourcePlayerId?: PlayerId
 }
 
+export type ScoreDelta = {
+  playerId: PlayerId
+  delta: number
+}
+
+export type RoundSettlement = {
+  winnerId: PlayerId
+  deltas: ScoreDelta[]
+  totalPoints: number
+  breakdown: Array<{
+    label: string
+    points: number
+  }>
+  summary: string
+}
+
 export type HarbinRuleAssumptions = {
   winStructure: 'standard-4-melds-1-pair'
   chowRestriction: 'only-next-player-on-discard'
@@ -77,5 +93,7 @@ export type GameState = {
   turnNumber: number
   log: string[]
   winner: WinInfo | null
+  roundSettlement: RoundSettlement | null
+  scores: number[]
   assumptions: HarbinRuleAssumptions
 }

@@ -1,63 +1,63 @@
 # Harbin Mahjong
 
-A local single-player Harbin Mahjong web game with 3 AI opponents, built with React + TypeScript + Vite.
+A playable single-player Harbin Mahjong web game built with React + TypeScript + Vite.
 
-## Features
+## Live goals
 
-- Full playable browser UI
-- Start round / restart session interaction
-- Draw / discard / claim action flow
-- Meld support: chow, pong, kong
-- Self-draw and discard-win detection
-- 3 simple AI opponents
-- Event log, wall counter, turn counter, round state
-- Unit tests for core rule logic
-- GitHub Actions CI for lint, test, and build
+This project aims to become a polished browser-playable Harbin Mahjong experience with:
 
-## Harbin rule assumptions
+- complete local game flow
+- better AI opponents
+- documented rule assumptions
+- automated CI and issue-driven iteration
 
-Harbin Mahjong has local rule variations, so this project implements a documented playable approximation:
+## Current v2 features
 
-- Standard winning structure: 4 melds + 1 pair
-- No flower tiles
+- 1 human player vs 3 AI players
+- draw / discard / chow / pong / kong / win flow
+- discard-claim priority queue
+- dealer rotation
+- round settlement panel
+- cumulative scoreboard across rounds
+- seven-pairs settlement support
+- event log and action prompts
+- automated tests, lint, and build in CI
+
+## Current rule assumptions
+
+This is a playable approximation, not yet a full authoritative implementation of every Harbin local scoring variation.
+
 - 136-tile wall
-- Chow allowed only by the next player on a discard
-- Claim priority: win > kong > pong > chow
-- Simplified flat win model; no detailed fan scoring yet
+- no flower tiles
+- chow only from the next player on a discard
+- claim priority: win > kong > pong > chow
+- standard hand supported: 4 melds + 1 pair
+- seven pairs recognized in settlement
+- simplified settlement bonuses:
+  - base win
+  - self-draw
+  - dealer win
+  - seven pairs
+  - pure one suit
+  - pung/kong-heavy hand
 
-These assumptions are encoded in the game engine and can be evolved in later iterations.
+## Development
 
-## Tech stack
-
-- React 19
-- TypeScript
-- Vite
-- Vitest
-- ESLint
-
-## Scripts
+Use pnpm in this repository.
 
 ```bash
-npm install
-npm run dev
-npm run test
-npm run build
-npm run lint
+corepack enable
+pnpm install
+pnpm dev
+pnpm test
+pnpm lint
+pnpm build
 ```
 
-## Project structure
+## CI
 
-- `src/game/tiles.ts` — tile generation, labels, ordering
-- `src/game/rules.ts` — hand evaluation and claim rules
-- `src/game/engine.ts` — turn flow and round state transitions
-- `src/game/ai.ts` — simple local AI logic
-- `src/App.tsx` — game UI
+GitHub Actions runs lint, test, and build on pushes and pull requests.
 
-## Current status
+## Roadmap
 
-This repository already contains a working v1 prototype with a playable interface and automated checks. Future iterations can improve:
-
-- More faithful Harbin-specific scoring and restrictions
-- Better AI strategy
-- Sound, animations, and mobile polish
-- Round progression, dealer rotation, and score settlement
+See `.github/ISSUE_TEMPLATE/`, `docs/ROADMAP.md`, and repository issues for the next iteration plan.
