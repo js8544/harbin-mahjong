@@ -1,4 +1,4 @@
-export type Suit = 'dot' | 'bam' | 'char' | 'wind' | 'dragon'
+export type Suit = 'dot' | 'bam' | 'char' | 'red'
 
 export type Tile = {
   id: string
@@ -14,6 +14,7 @@ export type Meld = {
   type: MeldType
   tiles: Tile[]
   fromPlayer: PlayerId
+  concealed?: boolean
 }
 
 export type PlayerState = {
@@ -25,9 +26,11 @@ export type PlayerState = {
   discards: Tile[]
   seatWind: 'East' | 'South' | 'West' | 'North'
   hasWon: boolean
+  ting: boolean
+  opened: boolean
 }
 
-export type PendingPromptAction = 'win' | 'kong' | 'pong' | 'chow' | 'pass'
+export type PendingPromptAction = 'win' | 'kong' | 'pong' | 'chow' | 'ting' | 'pass'
 
 export type PendingPrompt = {
   playerId: PlayerId
@@ -36,18 +39,18 @@ export type PendingPrompt = {
   actions: PendingPromptAction[]
 }
 
-export type TurnPhase =
-  | 'notStarted'
-  | 'draw'
-  | 'discard'
-  | 'claimPrompt'
-  | 'roundOver'
+export type TurnPhase = 'notStarted' | 'draw' | 'discard' | 'claimPrompt' | 'roundOver'
+
+export type WinType = 'pinghu' | 'self-draw' | 'touch-bao' | 'bao-zhong-bao' | 'qiang-gang'
 
 export type WinInfo = {
   winnerId: PlayerId
   source: 'self-draw' | 'discard'
   winningTile: Tile
   sourcePlayerId?: PlayerId
+  winType: WinType
+  isJiaHu: boolean
+  usedBao: boolean
 }
 
 export type ScoreDelta = {
@@ -67,13 +70,21 @@ export type RoundSettlement = {
 }
 
 export type HarbinRuleAssumptions = {
-  winStructure: 'standard-4-melds-1-pair'
+  winStructure: 'harbin-open-hand'
   chowRestriction: 'only-next-player-on-discard'
-  claimPriority: ['win', 'kong', 'pong', 'chow']
+  claimPriority: ['win', 'ting', 'kong', 'pong', 'chow']
   flowersUsed: false
-  scoringModel: 'simplified-flat-win-without-fan-counting'
+  scoringModel: 'harbin-a-single-hidden-bao'
   handSize: 13
-  wallTileCount: 136
+  wallTileCount: 112
+  baoCount: 1
+  requiresOpenBeforeTing: true
+  requiresYaoJiu: true
+  requiresSequence: true
+  requiresTriplet: true
+  forbidsPureOneSuit: true
+  forbidsSevenPairs: true
+  forbidsShouBaYi: true
 }
 
 export type GameState = {
@@ -96,4 +107,5 @@ export type GameState = {
   roundSettlement: RoundSettlement | null
   scores: number[]
   assumptions: HarbinRuleAssumptions
+  hiddenBaoTile: Tile | null
 }

@@ -3,6 +3,7 @@ import {
   canDeclareConcealedKong,
   canWinWithStandardHand,
   findDiscardClaimOptions,
+  meetsHarbinBasicHu,
   playerOrderDistance,
 } from '../rules'
 import type { Tile } from '../types'
@@ -14,53 +15,36 @@ const t = (suit: Tile['suit'], rank: number): Tile => ({
   id: `t-${idCounter++}`,
 })
 
-describe('canWinWithStandardHand', () => {
+describe('standard shape', () => {
   it('returns true for a valid 4 meld + pair hand', () => {
     const tiles: Tile[] = [
-      t('char', 1),
-      t('char', 2),
-      t('char', 3),
-      t('char', 4),
-      t('char', 5),
-      t('char', 6),
-      t('bam', 2),
-      t('bam', 3),
-      t('bam', 4),
-      t('dot', 5),
-      t('dot', 5),
-      t('dot', 5),
-      t('wind', 1),
-      t('wind', 1),
+      t('char', 1), t('char', 2), t('char', 3),
+      t('char', 4), t('char', 5), t('char', 6),
+      t('bam', 2), t('bam', 3), t('bam', 4),
+      t('dot', 5), t('dot', 5), t('dot', 5),
+      t('red', 1), t('red', 1),
     ]
 
     expect(canWinWithStandardHand(tiles)).toBe(true)
   })
 
-  it('returns false for non-winning hand shape', () => {
+  it('rejects unopened harbin basic hu', () => {
     const tiles: Tile[] = [
-      t('char', 1),
-      t('char', 1),
-      t('char', 2),
-      t('char', 3),
-      t('char', 4),
-      t('bam', 1),
-      t('bam', 2),
-      t('bam', 3),
-      t('dot', 2),
-      t('dot', 3),
-      t('dot', 4),
-      t('dragon', 1),
-      t('dragon', 2),
-      t('wind', 4),
+      t('char', 1), t('char', 2), t('char', 3),
+      t('char', 4), t('char', 5), t('char', 6),
+      t('bam', 2), t('bam', 3), t('bam', 4),
+      t('dot', 5), t('dot', 5), t('dot', 5),
+      t('red', 1), t('red', 1),
     ]
 
-    expect(canWinWithStandardHand(tiles)).toBe(false)
+    expect(meetsHarbinBasicHu(tiles, false)).toBe(false)
+    expect(meetsHarbinBasicHu(tiles, true)).toBe(true)
   })
 })
 
 describe('discard claim options', () => {
   it('allows chow only for next player', () => {
-    const hand: Tile[] = [t('char', 3), t('char', 4), t('wind', 1)]
+    const hand: Tile[] = [t('char', 3), t('char', 4), t('red', 1)]
     const discarded = t('char', 5)
 
     expect(findDiscardClaimOptions(hand, discarded, true)).toContain('chow')

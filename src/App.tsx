@@ -45,12 +45,13 @@ function App() {
     if (game.phase === 'notStarted') return '准备开始新一局，点击“开始对局”即可发牌。'
     if (game.winner) {
       const winner = game.players[game.winner.winnerId]
-      if (game.winner.source === 'self-draw') return `${winner.name} 自摸胡牌。`
-      return `${winner.name} 接 ${game.players[game.winner.sourcePlayerId ?? 0].name} 的弃牌胡牌。`
+      const suffix = game.winner.usedBao ? '（宝牌）' : game.winner.isJiaHu ? '（夹胡）' : ''
+      if (game.winner.source === 'self-draw') return `${winner.name} ${game.winner.winType === 'bao-zhong-bao' ? '宝中宝' : '自摸'}胡牌${suffix}。`
+      return `${winner.name} 接 ${game.players[game.winner.sourcePlayerId ?? 0].name} 的弃牌胡牌${suffix}。`
     }
     if (game.phase === 'roundOver') return '本局流局，点击“下一局”继续。'
     if (humanPrompt?.actions.includes('win') && game.phase === 'claimPrompt') {
-      return `你可以胡 ${tileLabel(humanPrompt.tile)}。`
+      return `你可以胡 ${tileLabel(humanPrompt.tile)}，当前胡法会按哈尔滨 A 版规则结算。`
     }
     if (humanPrompt?.actions.includes('kong') && game.phase === 'discard') {
       return `你可以选择杠 ${tileLabel(humanPrompt.tile)}，也可以直接出牌。`
@@ -147,7 +148,7 @@ function App() {
             return
           }
         }
-        const tile = chooseDiscard(currentPlayer.hand)
+        const tile = chooseDiscard(currentPlayer.hand, currentPlayer.opened)
         setGame((prev) => discardTile(prev, tile.id))
         return
       }
@@ -161,7 +162,7 @@ function App() {
             setGame((prev) => resolveClaim(prev, 'pass'))
             return
           }
-          if (shouldClaim(action, currentPlayer.hand, game.currentPrompt.tile)) {
+          if (shouldClaim(action, currentPlayer.hand, game.currentPrompt.tile, currentPlayer.opened)) {
             setGame((prev) => resolveClaim(prev, action))
             return
           }
@@ -320,7 +321,7 @@ function App() {
             <div className="self-header">
               <div>
                 <div className="self-title">你的手牌</div>
-                <div className="self-meta">{seatWindLabel(human.seatWind)}位 · 手牌 {human.hand.length} 张 · 分数 {game.scores[human.id]}</div>
+                <div className="self-meta">{seatWindLabel(human.seatWind)}位 · 手牌 {human.hand.length} 张 · 分数 {game.scores[human.id]} · {human.opened ? '已开门' : '未开门'} · {human.ting ? '已报听' : '未报听'}</div>
               </div>
               <div className="self-melds">
                 <span className="river-label">你的副露</span>
