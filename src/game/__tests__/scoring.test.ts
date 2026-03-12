@@ -50,7 +50,7 @@ describe('buildSettlement', () => {
       winningTile: state.players[1].hand[13],
     })
 
-    expect(settlement?.breakdown.some((item) => item.label === 'Seven pairs')).toBe(true)
+    expect(settlement?.breakdown.some((item) => item.label === '七对')).toBe(true)
     expect(settlement?.deltas.find((item) => item.playerId === 1)?.delta).toBeGreaterThan(0)
     expect(settlement?.deltas.find((item) => item.playerId === 2)?.delta).toBeLessThan(0)
   })
