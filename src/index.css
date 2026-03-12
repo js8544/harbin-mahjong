@@ -1,27 +1,30 @@
 :root {
-  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   line-height: 1.4;
   font-weight: 400;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: #f8f4e7;
+  background: #0b2a18;
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
+html,
+body,
+#root {
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.75), transparent 35%),
-    radial-gradient(circle at 80% 90%, rgba(200, 236, 224, 0.55), transparent 34%),
-    linear-gradient(140deg, #d8e9f1 0%, #d6ebdf 100%);
 }
 
-#root {
-  min-height: 100vh;
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top, rgba(42, 113, 73, 0.28), transparent 36%),
+    radial-gradient(circle at bottom right, rgba(164, 111, 41, 0.14), transparent 28%),
+    linear-gradient(180deg, #10371f 0%, #082414 100%);
 }
