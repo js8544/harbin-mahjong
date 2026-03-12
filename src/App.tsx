@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+/* eslint-disable react-hooks/preserve-manual-memoization, react-hooks/set-state-in-effect */
 import './App.css'
 import { chooseDiscard, shouldClaim } from './game/ai'
 import {
