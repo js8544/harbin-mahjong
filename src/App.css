@@ -1,5 +1,5 @@
 .app-shell {
-  max-width: 1380px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
   color: #f8f4e7;
@@ -68,28 +68,31 @@ button:disabled {
   color: white;
 }
 
+.hud-strip,
+.drawer-panel,
+.self-panel,
+.seat-panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2);
+}
+
 .hud-strip {
   border-radius: 22px;
   padding: 16px 18px;
   background: linear-gradient(180deg, rgba(23, 74, 44, 0.92), rgba(13, 53, 31, 0.94));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 34px rgba(0, 0, 0, 0.22);
 }
 
-.hud-main {
+.banner-line {
+  min-height: 50px;
   margin-bottom: 10px;
-}
-
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 8px 16px;
+  padding: 12px 16px;
   border-radius: 999px;
   background: rgba(246, 215, 123, 0.14);
   color: #fff2c6;
   border: 1px solid rgba(246, 215, 123, 0.24);
-  font-weight: 700;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
 }
 
 .hud-stats {
@@ -106,17 +109,18 @@ button:disabled {
   font-size: 14px;
 }
 
-.mahjong-table {
+.mahjong-layout {
   margin-top: 18px;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 220px;
-  grid-template-rows: auto minmax(380px, 1fr) auto;
   gap: 16px;
-  align-items: stretch;
 }
 
-.seat {
-  min-width: 0;
+.table-stage {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 220px;
+  grid-template-rows: auto minmax(460px, 1fr);
+  gap: 16px;
+  align-items: stretch;
 }
 
 .seat-top {
@@ -133,67 +137,66 @@ button:disabled {
   grid-row: 2;
 }
 
-.table-center {
+.center-zone {
   grid-column: 2;
   grid-row: 2;
 }
 
-.seat-bottom {
-  grid-column: 1 / 4;
-  grid-row: 3;
-}
-
-.seat-card {
-  height: 100%;
+.seat-panel,
+.self-panel {
   border-radius: 22px;
   padding: 14px;
   background: linear-gradient(180deg, rgba(22, 63, 40, 0.96), rgba(13, 44, 27, 0.96));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
 }
 
-.seat-card.active {
-  box-shadow: 0 0 0 2px rgba(247, 216, 119, 0.52), 0 18px 36px rgba(0, 0, 0, 0.24);
+.seat-panel.active,
+.self-panel.active {
+  box-shadow: 0 0 0 2px rgba(247, 216, 119, 0.5), 0 18px 36px rgba(0, 0, 0, 0.24);
 }
 
-.seat-card.vertical {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-
-.seat-card.self {
+.self-panel {
   background: linear-gradient(180deg, rgba(28, 79, 49, 0.98), rgba(14, 52, 31, 0.98));
 }
 
-.seat-head {
+.seat-head,
+.self-header {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.seat-head {
   align-items: center;
-  gap: 8px;
   margin-bottom: 6px;
 }
 
-.seat-meta {
+.seat-meta,
+.self-meta,
+.seat-subtle,
+.center-caption,
+.river-label {
   color: rgba(244, 233, 202, 0.78);
   font-size: 14px;
-  margin-bottom: 10px;
 }
 
-.seat-subtle {
-  color: rgba(244, 233, 202, 0.6);
-  font-size: 13px;
+.river-label {
+  display: block;
+  margin: 10px 0 6px;
 }
 
 .meld-row,
-.discard-grid {
+.discard-grid,
+.claim-actions,
+.hand-area,
+.action-dock,
+.topbar-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
 }
 
-.meld-row {
-  margin-bottom: 10px;
+.discard-grid {
+  gap: 6px;
 }
 
 .meld-pill,
@@ -206,14 +209,15 @@ button:disabled {
   font-size: 14px;
 }
 
-.discard-grid.compact .discard-tile {
-  padding: 4px 6px;
-  font-size: 13px;
+.meld-type {
+  margin-right: 6px;
+  color: #f8d878;
 }
 
 .table-felt {
+  position: relative;
+  min-height: 460px;
   height: 100%;
-  min-height: 420px;
   border-radius: 30px;
   padding: 18px;
   background:
@@ -223,50 +227,88 @@ button:disabled {
   box-shadow: inset 0 0 0 2px rgba(255, 236, 184, 0.14), 0 20px 40px rgba(0, 0, 0, 0.24);
 }
 
-.table-core {
-  height: 100%;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 249, 232, 0.12);
-  display: grid;
-  place-items: center;
-  gap: 16px;
-  padding: 18px;
+.wind-marker {
+  position: absolute;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 245, 217, 0.9);
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wind-top {
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.wind-left {
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.wind-right {
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.wind-bottom {
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.center-status-card,
+.center-card,
+.settlement-box,
+.claim-bar {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+}
+
+.center-status-card {
+  padding: 16px;
   text-align: center;
+  margin: 40px auto 14px;
+  max-width: 620px;
 }
 
-.table-status {
-  max-width: 520px;
-}
-
-.table-status-label,
-.last-discard-label,
+.center-title,
 .claim-title {
   color: rgba(244, 233, 202, 0.72);
   font-size: 13px;
   margin-bottom: 6px;
 }
 
-.table-status-text {
+.center-text {
   font-size: clamp(1.1rem, 2vw, 1.55rem);
   font-weight: 800;
   color: #fff7dd;
 }
 
-.last-discard-box,
-.settlement-box {
-  min-width: min(100%, 360px);
-  padding: 14px;
-  border-radius: 18px;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.center-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.last-discard-tile {
+.center-card,
+.settlement-box,
+.claim-bar,
+.drawer-panel {
+  padding: 14px;
+}
+
+.featured-tile {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 74px;
-  height: 96px;
+  width: 76px;
+  height: 100px;
   margin: 8px auto;
   border-radius: 16px;
   background: linear-gradient(180deg, #fffef9 0%, #ece4cf 100%);
@@ -275,22 +317,28 @@ button:disabled {
   font-size: 28px;
 }
 
-.last-discard-meta,
-.settlement-box p {
-  margin: 0;
-  color: rgba(255, 248, 230, 0.92);
+.operation-summary,
+.self-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff6d5;
+}
+
+.bottom-dock {
+  grid-column: 1 / -1;
+}
+
+.river-section {
+  margin-top: 10px;
 }
 
 .hand-area {
   margin-top: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .mahjong-tile {
-  width: 70px;
-  min-height: 104px;
+  width: 72px;
+  min-height: 106px;
   border-radius: 16px;
   padding: 8px 6px;
   background: linear-gradient(180deg, #fffdf7 0%, #e8e0cb 100%);
@@ -319,40 +367,10 @@ button:disabled {
   font-weight: 700;
 }
 
-.action-dock {
-  margin-top: 16px;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
 .action-main {
-  min-width: 210px;
-  min-height: 52px;
+  min-width: 220px;
+  min-height: 54px;
   font-size: 18px;
-}
-
-.claim-bar {
-  margin-top: 16px;
-  padding: 14px;
-  border-radius: 18px;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.claim-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.drawer-panel {
-  margin-top: 16px;
-  border-radius: 20px;
-  padding: 16px;
-  background: rgba(10, 35, 22, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .drawer-panel h2 {
@@ -365,32 +383,21 @@ button:disabled {
   padding-right: 4px;
 }
 
-.log-list p {
-  margin: 0 0 8px;
-  color: rgba(255, 246, 227, 0.9);
-}
-
-.rules-panel ul {
-  margin: 0;
-  padding-left: 20px;
+.log-list p,
+.rules-panel li {
   color: rgba(255, 246, 227, 0.92);
 }
 
-.rules-panel li + li {
-  margin-top: 8px;
-}
-
 @media (max-width: 980px) {
-  .mahjong-table {
+  .table-stage {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto;
   }
 
   .seat-top,
   .seat-left,
   .seat-right,
-  .table-center,
-  .seat-bottom {
+  .center-zone {
     grid-column: 1;
   }
 
@@ -398,11 +405,11 @@ button:disabled {
     grid-row: 1;
   }
 
-  .seat-left {
+  .center-zone {
     grid-row: 2;
   }
 
-  .table-center {
+  .seat-left {
     grid-row: 3;
   }
 
@@ -410,12 +417,8 @@ button:disabled {
     grid-row: 4;
   }
 
-  .seat-bottom {
-    grid-row: 5;
-  }
-
   .table-felt {
-    min-height: 320px;
+    min-height: 360px;
   }
 }
 
@@ -424,17 +427,18 @@ button:disabled {
     padding: 14px;
   }
 
-  .topbar {
+  .topbar,
+  .self-header {
     flex-direction: column;
   }
 
-  .topbar-actions {
+  .topbar-actions button,
+  .action-main {
     width: 100%;
-    justify-content: stretch;
   }
 
-  .topbar-actions button {
-    flex: 1;
+  .center-grid {
+    grid-template-columns: 1fr;
   }
 
   .mahjong-tile {
@@ -444,9 +448,5 @@ button:disabled {
 
   .tile-face {
     font-size: 24px;
-  }
-
-  .action-main {
-    width: 100%;
   }
 }
