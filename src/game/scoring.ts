@@ -42,27 +42,27 @@ export const buildSettlement = (
     return null
   }
 
-  const breakdown: ScoreBreakdownItem[] = [{ label: 'Base win', points: 1 }]
+  const breakdown: ScoreBreakdownItem[] = [{ label: '基础胡牌', points: 1 }]
 
   if (winner.source === 'self-draw') {
-    breakdown.push({ label: 'Self draw', points: 1 })
+    breakdown.push({ label: '自摸', points: 1 })
   }
 
   if (winner.winnerId === state.dealerId) {
-    breakdown.push({ label: 'Dealer win', points: 1 })
+    breakdown.push({ label: '庄家胡牌', points: 1 })
   }
 
   if (isSevenPairs(winningTiles)) {
-    breakdown.push({ label: 'Seven pairs', points: 2 })
+    breakdown.push({ label: '七对', points: 2 })
   }
 
   if (isPureOneSuit(winningTiles)) {
-    breakdown.push({ label: 'Pure one suit', points: 2 })
+    breakdown.push({ label: '清一色', points: 2 })
   }
 
   const sets = countPungsAndKongs(player)
   if (sets >= 2) {
-    breakdown.push({ label: 'Pung/Kong heavy hand', points: 1 })
+    breakdown.push({ label: '刻子手', points: 1 })
   }
 
   const totalPoints = breakdown.reduce((sum, item) => sum + item.points, 0)
@@ -92,6 +92,6 @@ export const buildSettlement = (
     deltas,
     totalPoints,
     breakdown,
-    summary: `${player.name} wins for ${totalPoints} point(s).`,
+    summary: `${player.name}胡牌，共 ${totalPoints} 分。`,
   }
 }

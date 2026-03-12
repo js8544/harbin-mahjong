@@ -450,3 +450,52 @@ button:disabled {
     font-size: 24px;
   }
 }
+
+
+.mahjong-tile {
+  position: relative;
+  width: 68px;
+  min-height: 96px;
+  padding: 12px 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(126, 98, 43, 0.35);
+  background: linear-gradient(180deg, #fffdf8 0%, #f3ead2 55%, #e4d3aa 100%);
+  color: #3b2500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255,255,255,0.65);
+}
+
+.mahjong-tile.selected {
+  transform: translateY(-8px);
+  box-shadow: 0 0 0 2px rgba(247, 216, 119, 0.7), 0 12px 20px rgba(0, 0, 0, 0.24);
+}
+
+.tile-corner {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: 11px;
+  color: rgba(80, 45, 8, 0.72);
+}
+
+.tile-face {
+  margin-top: 10px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #8d1414;
+}
+
+.tile-name {
+  font-size: 13px;
+  color: #5a4522;
+}
+
+.discard-tile,
+.featured-tile,
+.meld-pill {
+  font-weight: 700;
+}

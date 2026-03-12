@@ -11,7 +11,8 @@ import {
   restartGame,
   startRound,
 } from './game/engine'
-import { tileLabel, tileVisual } from './game/tiles'
+import { actionLabel, meldTypeLabel, seatWindLabel } from './game/i18n'
+import { tileLabel, tileSuitBadge, tileVisual } from './game/tiles'
 import type { PendingPromptAction, PlayerState } from './game/types'
 
 const AI_DELAY_MS = 450
@@ -318,7 +319,7 @@ function App() {
             <div className="self-header">
               <div>
                 <div className="self-title">你的手牌</div>
-                <div className="self-meta">{human.seatWind} 位 · 手牌 {human.hand.length} 张 · 分数 {game.scores[human.id]}</div>
+                <div className="self-meta">{seatWindLabel(human.seatWind)}位 · 手牌 {human.hand.length} 张 · 分数 {game.scores[human.id]}</div>
               </div>
               <div className="self-melds">
                 <span className="river-label">你的副露</span>
@@ -341,6 +342,7 @@ function App() {
                   onClick={() => setSelectedTileId(tile.id)}
                   title={tileLabel(tile)}
                 >
+                  <span className="tile-corner">{tileSuitBadge(tile)}</span>
                   <span className="tile-face">{tileVisual(tile)}</span>
                   <span className="tile-name">{tileLabel(tile)}</span>
                 </button>
@@ -420,7 +422,7 @@ function SeatPanel({
       <div className="seat-head">
         <strong>{seatName(side)}</strong>
         <span>
-          {player.name} · {player.seatWind}
+          {player.name} · {seatWindLabel(player.seatWind)}位
         </span>
       </div>
       <div className="seat-meta">手牌 {player.hand.length} · 分数 {score}</div>
@@ -433,20 +435,6 @@ function seatName(side: 'top' | 'left' | 'right') {
   if (side === 'top') return '对家'
   if (side === 'left') return '左家'
   return '右家'
-}
-
-function actionLabel(action: PendingPromptAction) {
-  if (action === 'win') return '胡'
-  if (action === 'kong') return '杠'
-  if (action === 'pong') return '碰'
-  if (action === 'chow') return '吃'
-  return '过'
-}
-
-function meldTypeLabel(type: 'chow' | 'pong' | 'kong') {
-  if (type === 'chow') return '吃'
-  if (type === 'pong') return '碰'
-  return '杠'
 }
 
 export default App

@@ -1,16 +1,16 @@
 import type { Tile } from './types'
 
 const WIND_LABELS: Record<number, string> = {
-  1: 'East',
-  2: 'South',
-  3: 'West',
-  4: 'North',
+  1: '东',
+  2: '南',
+  3: '西',
+  4: '北',
 }
 
 const DRAGON_LABELS: Record<number, string> = {
-  1: 'Red',
-  2: 'Green',
-  3: 'White',
+  1: '中',
+  2: '发',
+  3: '白',
 }
 
 let tileCounter = 0
@@ -71,27 +71,31 @@ export const sortHand = (tiles: Tile[]): Tile[] => [...tiles].sort(compareTiles)
 
 export const tileLabel = (tile: Tile): string => {
   if (tile.suit === 'wind') {
-    return `${WIND_LABELS[tile.rank]} Wind`
+    return WIND_LABELS[tile.rank]
   }
 
   if (tile.suit === 'dragon') {
-    return `${DRAGON_LABELS[tile.rank]} Dragon`
+    return DRAGON_LABELS[tile.rank]
   }
 
-  return `${tile.rank} ${tile.suit}`
+  if (tile.suit === 'char') return `${tile.rank}万`
+  if (tile.suit === 'bam') return `${tile.rank}条`
+  return `${tile.rank}筒`
 }
 
 export const tileVisual = (tile: Tile): string => {
-  if (tile.suit === 'wind') {
-    return `W-${WIND_LABELS[tile.rank][0]}`
+  if (tile.suit === 'wind' || tile.suit === 'dragon') {
+    return tileLabel(tile)
   }
 
-  if (tile.suit === 'dragon') {
-    return `D-${DRAGON_LABELS[tile.rank][0]}`
-  }
+  return `${tile.rank}${tile.suit === 'char' ? '万' : tile.suit === 'bam' ? '条' : '筒'}`
+}
 
-  const suitPrefix = tile.suit === 'char' ? 'C' : tile.suit === 'bam' ? 'B' : 'D'
-  return `${suitPrefix}${tile.rank}`
+export const tileSuitBadge = (tile: Tile): string => {
+  if (tile.suit === 'char') return '萬'
+  if (tile.suit === 'bam') return '條'
+  if (tile.suit === 'dot') return '筒'
+  return ''
 }
 
 export const cloneTile = (tile: Tile): Tile => ({ ...tile })

@@ -6,6 +6,7 @@ import {
   findDiscardClaimOptions,
   playerOrderDistance,
 } from './rules'
+import { actionLabel, playerName, seatWindLabel } from './i18n'
 import { cloneTile, createWall, shuffle, sortHand, tileCode, tileLabel } from './tiles'
 import { buildSettlement } from './scoring'
 import type {
@@ -19,7 +20,7 @@ import type {
   Tile,
 } from './types'
 
-const PLAYER_NAMES = ['You', 'AI East', 'AI South', 'AI West']
+const PLAYER_NAMES = ['你', '左家', '对家', '右家']
 const WINDS: PlayerState['seatWind'][] = ['East', 'South', 'West', 'North']
 
 export const DEFAULT_ASSUMPTIONS: HarbinRuleAssumptions = {
@@ -69,7 +70,7 @@ const clonePlayers = (players: PlayerState[]): PlayerState[] =>
 
 const addLog = (state: GameState, entry: string): GameState => ({
   ...state,
-  log: [`T${state.turnNumber}: ${entry}`, ...state.log].slice(0, 80),
+  log: [`第${state.turnNumber}手：${entry}`, ...state.log].slice(0, 80),
 })
 
 const bestActionRank = (prompt: PendingPrompt): number => {
@@ -149,7 +150,7 @@ export const startRound = (prev: GameState): GameState => {
     turnNumber: 1,
     winner: null,
     roundSettlement: null,
-    log: [`Round ${roundNumber} started. ${players[nextDealerId].name} is dealer.`],
+    log: [`第 ${roundNumber} 局开始，${playerName(nextDealerId)}坐庄（${seatWindLabel(players[nextDealerId].seatWind)}位）。`],
   }
 }
 
@@ -169,7 +170,7 @@ export const drawTile = (state: GameState): GameState => {
       roundSettlement: null,
       currentPrompt: null,
       claimQueue: [],
-      log: ['Round ended in draw (wall exhausted).', ...state.log],
+      log: ['本局流局（牌墙已摸完）。', ...state.log],
     }
   }
 
@@ -187,7 +188,7 @@ export const drawTile = (state: GameState): GameState => {
     claimQueue: [],
   }
 
-  nextState = addLog(nextState, `${currentPlayer.name} drew ${tileLabel(draw)}.`)
+  nextState = addLog(nextState, `${currentPlayer.name}摸到 ${tileLabel(draw)}。`)
 
   if (canWinWithStandardHand(currentPlayer.hand)) {
     nextState.currentPrompt = {
@@ -238,7 +239,7 @@ export const declareSelfDrawWin = (state: GameState): GameState => {
     roundSettlement: settlement,
     scores,
     claimQueue: [],
-    log: [`${state.players[state.currentPlayerId].name} wins by self-draw!`, ...state.log],
+    log: [`${state.players[state.currentPlayerId].name}自摸胡牌！`, ...state.log],
   }
 }
 
@@ -275,7 +276,7 @@ export const declareConcealedKong = (state: GameState): GameState => {
       currentPrompt: null,
       claimQueue: [],
     },
-    `${player.name} declared concealed kong (${tileLabel(tile)}).`,
+    `${player.name}暗杠 ${tileLabel(tile)}。`,
   )
 }
 
@@ -373,7 +374,7 @@ export const discardTile = (state: GameState, tileId: string): GameState => {
     turnNumber: state.turnNumber + 1,
   }
 
-  nextState = addLog(nextState, `${currentPlayer.name} discarded ${tileLabel(tile)}.`)
+  nextState = addLog(nextState, `${currentPlayer.name}打出 ${tileLabel(tile)}。`)
 
   if (prompt) {
     const topAction = prompt.actions.reduce<PendingPromptAction>(
@@ -384,7 +385,7 @@ export const discardTile = (state: GameState, tileId: string): GameState => {
 
     nextState = addLog(
       nextState,
-      `${state.players[prompt.playerId].name} may claim (${topAction.toUpperCase()}) on ${tileLabel(tile)}.`,
+      `${state.players[prompt.playerId].name}可对 ${tileLabel(tile)} 执行${actionLabel(topAction)}。`,
     )
   }
 
@@ -450,7 +451,7 @@ export const resolveClaim = (
           claimQueue: restQueue,
           currentPlayerId: nextPrompt.playerId,
         },
-        `${state.players[claimerId].name} passed on ${tileLabel(discardedTile)}.`,
+        `${state.players[claimerId].name}选择过 ${tileLabel(discardedTile)}。`,
       )
     }
 
@@ -462,24 +463,33 @@ export const resolveClaim = (
         phase: 'draw',
         currentPlayerId: nextPlayerId(sourcePlayerId),
       },
-      `${state.players[claimerId].name} passed on ${tileLabel(discardedTile)}.`,
+      `${state.players[claimerId].name}选择过 ${tileLabel(discardedTile)}。`,
     )
   }
 
   if (action === 'win') {
+    const winner = {
+      winnerId: claimerId,
+      source: 'discard' as const,
+      winningTile: discardedTile,
+      sourcePlayerId,
+    }
+    const settlement = buildSettlement(state, winner)
+    const scores = [...state.scores]
+    settlement?.deltas.forEach((item) => {
+      scores[item.playerId] += item.delta
+    })
+
     return {
       ...state,
       phase: 'roundOver',
-      winner: {
-        winnerId: claimerId,
-        source: 'discard',
-        winningTile: discardedTile,
-        sourcePlayerId,
-      },
+      winner,
+      roundSettlement: settlement,
+      scores,
       currentPrompt: null,
       claimQueue: [],
       log: [
-        `${state.players[claimerId].name} won on discard from ${state.players[sourcePlayerId].name}!`,
+        `${state.players[claimerId].name}接 ${state.players[sourcePlayerId].name} 的弃牌胡牌！`,
         ...state.log,
       ],
     }
@@ -507,7 +517,7 @@ export const resolveClaim = (
       phase: action === 'kong' ? 'draw' : 'discard',
       currentDrawnTile: null,
     },
-    `${claimer.name} claimed ${action.toUpperCase()} on ${tileLabel(discardedTile)}.`,
+    `${claimer.name}${actionLabel(action)} ${tileLabel(discardedTile)}。`,
   )
 }
 
