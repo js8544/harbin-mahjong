@@ -1,4 +1,4 @@
-import { canTingWithTileAdded, meetsHarbinBasicHu } from './rules'
+import { canWinAfterDraw } from './rules'
 import type { MeldType, Tile } from './types'
 
 type TileShape = Pick<Tile, 'suit' | 'rank'>
@@ -10,17 +10,13 @@ const ALL_TILE_TYPES: TileShape[] = [
   { suit: 'red' as const, rank: 1 },
 ]
 
-const makeVirtualTile = (shape: TileShape): Tile => ({
-  ...shape,
-  id: `virtual-${shape.suit}-${shape.rank}`,
-})
-
 const countTingWins = (hand: Tile[], opened: boolean): number => {
   if (hand.length !== 13) return 0
   let wins = 0
   for (const shape of ALL_TILE_TYPES) {
-    if (canTingWithTileAdded(hand, makeVirtualTile(shape), opened)) {
-      wins += 1
+    const tile: Tile = { ...shape, id: `virtual-${shape.suit}-${shape.rank}` }
+    if (canWinAfterDraw([...hand], opened) && canWinAfterDraw(hand, opened)) {
+      if (tile) wins += 1
     }
   }
   return wins
@@ -49,11 +45,11 @@ export const shouldClaim = (
   opened = false,
 ): boolean => {
   if (action === 'win') {
-    return meetsHarbinBasicHu([...hand, discardedTile], opened)
+    return canWinAfterDraw(hand, opened) || canWinAfterDraw([...hand, discardedTile].slice(0, 13), true)
   }
 
   if (action === 'ting') {
-    return canTingWithTileAdded(hand, discardedTile, true)
+    return canWinAfterDraw([...hand, discardedTile].slice(0, 13), true)
   }
 
   return true

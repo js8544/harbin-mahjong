@@ -37,6 +37,8 @@ export type PendingPrompt = {
   sourcePlayerId: PlayerId
   tile: Tile
   actions: PendingPromptAction[]
+  tingDiscardOptions?: string[]
+  winningDraws?: Tile[]
 }
 
 export type TurnPhase = 'notStarted' | 'draw' | 'discard' | 'claimPrompt' | 'roundOver'
@@ -108,4 +110,5 @@ export type GameState = {
   scores: number[]
   assumptions: HarbinRuleAssumptions
   hiddenBaoTile: Tile | null
+  justDrawnTileId: string | null
 }

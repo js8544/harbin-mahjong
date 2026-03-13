@@ -33,15 +33,8 @@ const toSortedCodes = (counts: TileCounts): string[] =>
   [...counts.keys()].sort((a, b) => {
     const aa = parseCode(a)
     const bb = parseCode(b)
-    const suitOrder: Record<Tile['suit'], number> = {
-      char: 0,
-      bam: 1,
-      dot: 2,
-      red: 3,
-    }
-    if (aa.suit !== bb.suit) {
-      return suitOrder[aa.suit] - suitOrder[bb.suit]
-    }
+    const suitOrder: Record<Tile['suit'], number> = { char: 0, bam: 1, dot: 2, red: 3 }
+    if (aa.suit !== bb.suit) return suitOrder[aa.suit] - suitOrder[bb.suit]
     return aa.rank - bb.rank
   })
 
@@ -109,10 +102,7 @@ const findWinningPatternsFromCounts = (counts: TileCounts): WinPattern[] => {
     }
   }
 
-  if (counts.size > 0) {
-    dfs(counts, [], null)
-  }
-
+  if (counts.size > 0) dfs(counts, [], null)
   return patterns
 }
 
@@ -140,6 +130,61 @@ export const meetsHarbinBasicHu = (tiles: Tile[], opened: boolean): boolean => {
   })
 }
 
+export const canDeclareTing = (tiles: Tile[], opened: boolean): boolean => {
+  if (!opened) return false
+  if (tiles.length !== 14) return false
+  return tiles.some((discard) => {
+    const nextHand = tiles.filter((tile) => tile.id !== discard.id)
+    return canWinAfterDraw(nextHand, opened)
+  })
+}
+
+export const getTingDiscardOptions = (tiles: Tile[], opened: boolean): Tile[] => {
+  if (!opened || tiles.length !== 14) return []
+  return tiles.filter((discard) => {
+    const nextHand = tiles.filter((tile) => tile.id !== discard.id)
+    return canWinAfterDraw(nextHand, opened)
+  })
+}
+
+export const canWinAfterDraw = (hand13: Tile[], opened: boolean): boolean => {
+  if (hand13.length !== 13) return false
+  const seen = new Set<string>()
+  const candidates: Tile[] = []
+  for (const suit of ['char', 'bam', 'dot'] as const) {
+    for (let rank = 1; rank <= 9; rank += 1) {
+      candidates.push({ suit, rank, id: `${suit}-${rank}-virtual` })
+    }
+  }
+  candidates.push({ suit: 'red', rank: 1, id: 'red-1-virtual' })
+
+  for (const tile of candidates) {
+    const code = tileCode(tile)
+    if (seen.has(code)) continue
+    seen.add(code)
+    if (meetsHarbinBasicHu([...hand13, tile], opened)) return true
+  }
+  return false
+}
+
+export const getWinningDrawsForTing = (hand13: Tile[], opened: boolean): Tile[] => {
+  if (hand13.length !== 13) return []
+  const wins: Tile[] = []
+  const seen = new Set<string>()
+  for (const suit of ['char', 'bam', 'dot'] as const) {
+    for (let rank = 1; rank <= 9; rank += 1) {
+      const tile: Tile = { suit, rank, id: `${suit}-${rank}-virtual` }
+      const code = tileCode(tile)
+      if (seen.has(code)) continue
+      seen.add(code)
+      if (meetsHarbinBasicHu([...hand13, tile], opened)) wins.push(tile)
+    }
+  }
+  const redTile: Tile = { suit: 'red', rank: 1, id: 'red-1-virtual' }
+  if (meetsHarbinBasicHu([...hand13, redTile], opened)) wins.push(redTile)
+  return wins
+}
+
 export const isJiaHuTile = (tiles: Tile[], winningTile: Tile): boolean => {
   const patterns = findWinningPatterns(tiles)
   return patterns.some((pattern) =>
@@ -149,38 +194,21 @@ export const isJiaHuTile = (tiles: Tile[], winningTile: Tile): boolean => {
   )
 }
 
-export const canTingWithTileAdded = (hand: Tile[], tile: Tile, opened: boolean): boolean =>
-  meetsHarbinBasicHu([...hand, tile], opened)
-
 export const findDiscardClaimOptions = (hand: Tile[], discardedTile: Tile, isNextPlayer: boolean): MeldType[] => {
   const merged = [...hand, discardedTile]
   const counts = buildCounts(merged)
   const code = tileCode(discardedTile)
   const options: MeldType[] = []
 
-  if ((counts.get(code) ?? 0) >= 3) {
-    options.push('pong')
-  }
-
-  if ((counts.get(code) ?? 0) >= 4) {
-    options.push('kong')
-  }
-
-  if (isNextPlayer && isSuited(discardedTile) && findChowPatterns(hand, discardedTile, true).length > 0) {
-    options.push('chow')
-  }
+  if ((counts.get(code) ?? 0) >= 3) options.push('pong')
+  if ((counts.get(code) ?? 0) >= 4) options.push('kong')
+  if (isNextPlayer && isSuited(discardedTile) && findChowPatterns(hand, discardedTile, true).length > 0) options.push('chow')
 
   return options
 }
 
-export const findChowPatterns = (
-  hand: Tile[],
-  discardedTile: Tile,
-  isNextPlayer: boolean,
-): Array<[Tile, Tile]> => {
-  if (!isNextPlayer || !isSuited(discardedTile)) {
-    return []
-  }
+export const findChowPatterns = (hand: Tile[], discardedTile: Tile, isNextPlayer: boolean): Array<[Tile, Tile]> => {
+  if (!isNextPlayer || !isSuited(discardedTile)) return []
 
   const possiblePatterns = [
     [discardedTile.rank - 2, discardedTile.rank - 1],
@@ -191,15 +219,10 @@ export const findChowPatterns = (
   const patterns: Array<[Tile, Tile]> = []
   for (const [a, b] of possiblePatterns) {
     if (a < 1 || b > 9) continue
-
     const ta = hand.find((tile) => tile.suit === discardedTile.suit && tile.rank === a)
-    const tb = hand.find(
-      (tile) => tile.suit === discardedTile.suit && tile.rank === b && tile.id !== ta?.id,
-    )
-
+    const tb = hand.find((tile) => tile.suit === discardedTile.suit && tile.rank === b && tile.id !== ta?.id)
     if (ta && tb) patterns.push([ta, tb])
   }
-
   return patterns
 }
 

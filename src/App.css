@@ -499,3 +499,65 @@ button:disabled {
 .meld-pill {
   font-weight: 700;
 }
+
+
+.discard-pool {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 6px;
+}
+
+.central-pool-card {
+  min-height: 170px;
+}
+
+.central-pool-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mini-mahjong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 52px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fffdf8 0%, #efe6d1 100%);
+  color: #7e1111;
+  border: 1px solid rgba(126, 98, 43, 0.35);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  font-weight: 800;
+}
+
+.mahjong-tile.just-drawn {
+  border-color: #7ae0ff;
+  box-shadow: 0 0 0 3px rgba(122, 224, 255, 0.22), 0 12px 20px rgba(0, 0, 0, 0.24);
+}
+
+.mahjong-tile.dimmed {
+  opacity: 0.45;
+}
+
+.draw-badge,
+.ting-badge {
+  position: absolute;
+  right: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  color: white;
+}
+
+.draw-badge {
+  top: 6px;
+  background: #2a9fd6;
+}
+
+.ting-badge {
+  bottom: 6px;
+  background: #d37a12;
+}

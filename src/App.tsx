@@ -14,9 +14,10 @@ import {
 } from './game/engine'
 import { actionLabel, meldTypeLabel, seatWindLabel } from './game/i18n'
 import { tileLabel, tileSuitBadge, tileVisual } from './game/tiles'
-import type { PendingPromptAction, PlayerState } from './game/types'
+import type { PendingPromptAction, PlayerState, Tile } from './game/types'
 
 const AI_DELAY_MS = 450
+const AUTO_DRAW_DELAY_MS = 220
 
 function App() {
   const [game, setGame] = useState(() => createInitialGameState())
@@ -29,43 +30,49 @@ function App() {
   const topPlayer = game.players[2]
   const leftPlayer = game.players[1]
   const rightPlayer = game.players[3]
-  const humanPrompt =
-    game.currentPrompt && game.currentPrompt.playerId === human.id ? game.currentPrompt : null
+  const humanPrompt = game.currentPrompt && game.currentPrompt.playerId === human.id ? game.currentPrompt : null
 
   const selectedTile = useMemo(
     () => human.hand.find((tile) => tile.id === selectedTileId) ?? null,
     [human.hand, selectedTileId],
   )
 
+  const tingSelectableIds = useMemo(
+    () => new Set(humanPrompt?.actions.includes('ting') ? (humanPrompt.tingDiscardOptions ?? []) : []),
+    [humanPrompt],
+  )
+
   const selectedTileLabel = selectedTile ? tileLabel(selectedTile) : ''
-  const canHumanDraw = game.phase === 'draw' && currentPlayer.id === human.id && !game.winner
   const humanTurnToDiscard = game.phase === 'discard' && currentPlayer.id === human.id
+  const isLockedTingDiscard = human.ting && !!game.justDrawnTileId
 
   const bannerText = useMemo(() => {
     if (game.phase === 'notStarted') return '准备开始新一局，点击“开始对局”即可发牌。'
     if (game.winner) {
       const winner = game.players[game.winner.winnerId]
       const suffix = game.winner.usedBao ? '（宝牌）' : game.winner.isJiaHu ? '（夹胡）' : ''
-      if (game.winner.source === 'self-draw') return `${winner.name} ${game.winner.winType === 'bao-zhong-bao' ? '宝中宝' : '自摸'}胡牌${suffix}。`
+      if (game.winner.source === 'self-draw') {
+        return `${winner.name} ${game.winner.winType === 'bao-zhong-bao' ? '宝中宝' : '自摸'}胡牌${suffix}。`
+      }
       return `${winner.name} 接 ${game.players[game.winner.sourcePlayerId ?? 0].name} 的弃牌胡牌${suffix}。`
     }
     if (game.phase === 'roundOver') return '本局流局，点击“下一局”继续。'
-    if (humanPrompt?.actions.includes('win') && game.phase === 'claimPrompt') {
-      return `你可以胡 ${tileLabel(humanPrompt.tile)}，当前胡法会按哈尔滨 A 版规则结算。`
+    if (humanPrompt?.actions.includes('win')) {
+      return `你可以胡 ${tileLabel(humanPrompt.tile)}。`
+    }
+    if (humanPrompt?.actions.includes('ting') && game.phase === 'discard') {
+      return '你已满足报听条件，请选择一张允许打出的牌完成报听。'
     }
     if (humanPrompt?.actions.includes('kong') && game.phase === 'discard') {
       return `你可以选择杠 ${tileLabel(humanPrompt.tile)}，也可以直接出牌。`
     }
-    if (humanPrompt && game.phase === 'claimPrompt') {
-      return `你可以对 ${tileLabel(humanPrompt.tile)} 进行操作：${humanPrompt.actions
-        .map((action) => actionLabel(action))
-        .join(' / ')}。`
+    if (humanTurnToDiscard && human.ting && game.justDrawnTileId) {
+      return '你已报听，只能打出刚摸到的新牌。'
     }
-    if (canHumanDraw) return '你的回合，请摸牌。'
-    if (humanTurnToDiscard) return selectedTile ? `已选中 ${selectedTileLabel}，点击主按钮即可出牌。` : '请选择一张手牌后出牌。'
-    if (game.phase === 'claimPrompt') return '其他玩家正在响应这张弃牌。'
+    if (humanTurnToDiscard) return selectedTile ? `已选中 ${selectedTileLabel}，点击牌即可打出。` : '请选择一张手牌出牌。'
+    if (game.phase === 'claimPrompt') return '有人对这张牌有响应。'
     return `${currentPlayer.name} 回合，请稍候。`
-  }, [game, currentPlayer, humanPrompt, canHumanDraw, humanTurnToDiscard, selectedTile, selectedTileLabel])
+  }, [game, currentPlayer, humanPrompt, humanTurnToDiscard, human, selectedTile, selectedTileLabel])
 
   const primaryAction = useMemo(() => {
     if (game.phase === 'notStarted') {
@@ -74,18 +81,8 @@ function App() {
     if (game.winner || game.phase === 'roundOver') {
       return { label: '下一局', disabled: false, onClick: () => doStartRound() }
     }
-    if (canHumanDraw) {
-      return { label: '摸牌', disabled: false, onClick: () => doDraw() }
-    }
-    if (humanTurnToDiscard) {
-      return {
-        label: selectedTile ? `打出 ${selectedTileLabel}` : '请选择一张手牌',
-        disabled: !selectedTile,
-        onClick: () => selectedTile && doDiscard(selectedTile.id),
-      }
-    }
-    return { label: '等待其他玩家', disabled: true, onClick: () => undefined }
-  }, [game.phase, game.winner, canHumanDraw, humanTurnToDiscard, selectedTile, selectedTileLabel])
+    return { label: '牌局进行中', disabled: true, onClick: () => undefined }
+  }, [game.phase, game.winner])
 
   const doStartRound = () => {
     setSelectedTileId(null)
@@ -97,10 +94,12 @@ function App() {
     setGame(restartGame())
   }
 
-  const doDraw = () => setGame((prev) => drawTile(prev))
   const doDiscard = (tileId: string) => {
-    setSelectedTileId(null)
-    setGame((prev) => discardTile(prev, tileId))
+    setSelectedTileId(tileId)
+    setGame((prev) => {
+      if (prev.phase !== 'discard' || prev.currentPlayerId !== 0) return prev
+      return discardTile(prev, tileId)
+    })
   }
 
   const doResolvePrompt = (action: PendingPromptAction) => {
@@ -128,19 +127,36 @@ function App() {
   }, [human.hand, selectedTileId])
 
   useEffect(() => {
+    if (game.phase !== 'draw' || game.winner) return
+    const timer = window.setTimeout(() => {
+      setGame((prev) => drawTile(prev))
+    }, AUTO_DRAW_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [game.phase, game.currentPlayerId, game.turnNumber, game.winner])
+
+  useEffect(() => {
     if (game.phase === 'notStarted' || game.phase === 'roundOver' || game.winner) return
     if (currentPlayer.isHuman) return
 
     const timer = window.setTimeout(() => {
-      if (game.phase === 'draw') {
-        setGame((prev) => drawTile(prev))
-        return
-      }
-
       if (game.phase === 'discard') {
         if (game.currentPrompt?.playerId === currentPlayer.id) {
           if (game.currentPrompt.actions.includes('win')) {
             setGame((prev) => declareSelfDrawWin(prev))
+            return
+          }
+          if (game.currentPrompt.actions.includes('ting')) {
+            const allowed = new Set(game.currentPrompt.tingDiscardOptions ?? [])
+            const chosen = chooseDiscard(currentPlayer.hand, currentPlayer.opened)
+            const target = allowed.has(chosen.id)
+              ? chosen
+              : currentPlayer.hand.find((tile) => allowed.has(tile.id)) ?? chosen
+            setGame((prev) => {
+              let next = prev
+              next = resolveClaim(next, 'ting')
+              next = discardTile(next, target.id)
+              return next
+            })
             return
           }
           if (game.currentPrompt.actions.includes('kong')) {
@@ -148,14 +164,17 @@ function App() {
             return
           }
         }
-        const tile = chooseDiscard(currentPlayer.hand, currentPlayer.opened)
+
+        const tile = currentPlayer.ting && game.justDrawnTileId
+          ? currentPlayer.hand.find((item) => item.id === game.justDrawnTileId) ?? chooseDiscard(currentPlayer.hand, currentPlayer.opened)
+          : chooseDiscard(currentPlayer.hand, currentPlayer.opened)
         setGame((prev) => discardTile(prev, tile.id))
         return
       }
 
       if (game.phase === 'claimPrompt' && game.currentPrompt) {
         const { actions } = game.currentPrompt
-        const ordered: PendingPromptAction[] = ['win', 'kong', 'pong', 'chow', 'pass']
+        const ordered: PendingPromptAction[] = ['win', 'ting', 'kong', 'pong', 'chow', 'pass']
         for (const action of ordered) {
           if (!actions.includes(action)) continue
           if (action === 'pass') {
@@ -187,17 +206,15 @@ function App() {
     )
   }
 
+  const renderMiniTile = (tile: Tile, className = '') => (
+    <span key={tile.id} className={`mini-mahjong ${className}`.trim()} title={tileLabel(tile)}>
+      {tileVisual(tile)}
+    </span>
+  )
+
   const renderDiscards = (player: PlayerState) => (
-    <div className="discard-grid">
-      {player.discards.length === 0 ? (
-        <span className="seat-subtle">暂无弃牌</span>
-      ) : (
-        player.discards.map((tile) => (
-          <span key={`${player.id}-${tile.id}`} className="discard-tile" title={tileLabel(tile)}>
-            {tileVisual(tile)}
-          </span>
-        ))
-      )}
+    <div className="discard-pool">
+      {player.discards.length === 0 ? <span className="seat-subtle">暂无弃牌</span> : player.discards.map((tile) => renderMiniTile(tile))}
     </div>
   )
 
@@ -226,6 +243,7 @@ function App() {
           <span>庄家：{game.players[game.dealerId].name}</span>
           <span>轮到：{currentPlayer.name}</span>
           <span>牌墙：{game.wall.length} / {game.assumptions.wallTileCount - 1}</span>
+          <span>暗宝：{game.hiddenBaoTile ? '已封存' : '未生成'}</span>
           <span>总分：你 {game.scores[0]} · 左家 {game.scores[1]} · 对家 {game.scores[2]} · 右家 {game.scores[3]}</span>
         </div>
       </section>
@@ -235,7 +253,7 @@ function App() {
           <div className="seat-top seat-block">
             <SeatPanel player={topPlayer} active={topPlayer.id === game.currentPlayerId} side="top" score={game.scores[topPlayer.id]}>
               {renderMelds(topPlayer)}
-              <div className="river-label">对家牌河</div>
+              <div className="river-label">对家弃牌池</div>
               {renderDiscards(topPlayer)}
             </SeatPanel>
           </div>
@@ -243,7 +261,7 @@ function App() {
           <div className="seat-left seat-block">
             <SeatPanel player={leftPlayer} active={leftPlayer.id === game.currentPlayerId} side="left" score={game.scores[leftPlayer.id]}>
               {renderMelds(leftPlayer)}
-              <div className="river-label">左家牌河</div>
+              <div className="river-label">左家弃牌池</div>
               {renderDiscards(leftPlayer)}
             </SeatPanel>
           </div>
@@ -251,7 +269,7 @@ function App() {
           <div className="seat-right seat-block">
             <SeatPanel player={rightPlayer} active={rightPlayer.id === game.currentPlayerId} side="right" score={game.scores[rightPlayer.id]}>
               {renderMelds(rightPlayer)}
-              <div className="river-label">右家牌河</div>
+              <div className="river-label">右家弃牌池</div>
               {renderDiscards(rightPlayer)}
             </SeatPanel>
           </div>
@@ -266,9 +284,20 @@ function App() {
               <div className="center-status-card">
                 <div className="center-title">牌桌状态</div>
                 <div className="center-text">{bannerText}</div>
+                <div className="center-caption">
+                  你{human.opened ? '已开门' : '未开门'} · 你{human.ting ? '已报听' : '未报听'}
+                  {humanPrompt?.winningDraws?.length ? ` · 听${humanPrompt.winningDraws.map((tile) => tileLabel(tile)).join(' / ')}` : ''}
+                </div>
               </div>
 
               <div className="center-grid">
+                <div className="center-card central-pool-card">
+                  <div className="center-title">中央大牌池</div>
+                  <div className="central-pool-grid">
+                    {game.players.flatMap((player) => player.discards).slice(-24).map((tile) => renderMiniTile(tile))}
+                  </div>
+                </div>
+
                 <div className="center-card">
                   <div className="center-title">最近弃牌</div>
                   {game.lastDiscard ? (
@@ -281,23 +310,6 @@ function App() {
                   ) : (
                     <div className="center-caption">本局尚未出现弃牌</div>
                   )}
-                </div>
-
-                <div className="center-card">
-                  <div className="center-title">当前操作</div>
-                  <div className="operation-summary">
-                    {canHumanDraw && '摸牌'}
-                    {humanTurnToDiscard && (selectedTile ? `打出 ${selectedTileLabel}` : '选择手牌')}
-                    {!canHumanDraw && !humanTurnToDiscard && !humanPrompt && '等待中'}
-                    {humanPrompt && humanPrompt.actions.map((action) => actionLabel(action)).join(' / ')}
-                  </div>
-                  <div className="center-caption">
-                    {humanTurnToDiscard
-                      ? '主按钮固定在底部操作区'
-                      : humanPrompt
-                        ? '可在底部响应区直接操作'
-                        : '请关注牌桌中央提示'}
-                  </div>
                 </div>
               </div>
 
@@ -321,7 +333,9 @@ function App() {
             <div className="self-header">
               <div>
                 <div className="self-title">你的手牌</div>
-                <div className="self-meta">{seatWindLabel(human.seatWind)}位 · 手牌 {human.hand.length} 张 · 分数 {game.scores[human.id]} · {human.opened ? '已开门' : '未开门'} · {human.ting ? '已报听' : '未报听'}</div>
+                <div className="self-meta">
+                  {seatWindLabel(human.seatWind)}位 · 手牌 {human.hand.length} 张 · 分数 {game.scores[human.id]} · {human.opened ? '已开门' : '未开门'} · {human.ting ? '已报听' : '未报听'}
+                </div>
               </div>
               <div className="self-melds">
                 <span className="river-label">你的副露</span>
@@ -335,47 +349,55 @@ function App() {
             </div>
 
             <div className="hand-area">
-              {human.hand.map((tile) => (
-                <button
-                  key={tile.id}
-                  className={`mahjong-tile ${selectedTileId === tile.id ? 'selected' : ''}`}
-                  type="button"
-                  disabled={!humanTurnToDiscard}
-                  onClick={() => setSelectedTileId(tile.id)}
-                  title={tileLabel(tile)}
-                >
-                  <span className="tile-corner">{tileSuitBadge(tile)}</span>
-                  <span className="tile-face">{tileVisual(tile)}</span>
-                  <span className="tile-name">{tileLabel(tile)}</span>
-                </button>
-              ))}
+              {human.hand.map((tile) => {
+                const selected = selectedTileId === tile.id
+                const justDrawn = game.justDrawnTileId === tile.id
+                const tingAllowed = tingSelectableIds.size === 0 || tingSelectableIds.has(tile.id)
+                const disabled = !humanTurnToDiscard || (humanPrompt?.actions.includes('ting') ? !tingAllowed : false) || (isLockedTingDiscard ? !justDrawn : false)
+                return (
+                  <button
+                    key={tile.id}
+                    className={`mahjong-tile ${selected ? 'selected' : ''} ${justDrawn ? 'just-drawn' : ''} ${!tingAllowed ? 'dimmed' : ''}`}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => doDiscard(tile.id)}
+                    title={tileLabel(tile)}
+                  >
+                    <span className="tile-corner">{tileSuitBadge(tile)}</span>
+                    <span className="tile-face">{tileVisual(tile)}</span>
+                    <span className="tile-name">{tileLabel(tile)}</span>
+                    {justDrawn && <span className="draw-badge">新</span>}
+                    {humanPrompt?.actions.includes('ting') && tingAllowed && <span className="ting-badge">听</span>}
+                  </button>
+                )
+              })}
             </div>
 
             <div className="action-dock">
               <button className="primary action-main" onClick={primaryAction.onClick} disabled={primaryAction.disabled}>
                 {primaryAction.label}
               </button>
-              {humanTurnToDiscard && selectedTile && (
-                <button className="ghost" onClick={() => setSelectedTileId(null)}>
-                  取消选择
-                </button>
-              )}
             </div>
 
             {humanPrompt && (
               <div className="claim-bar">
                 <div className="claim-title">可执行操作</div>
                 <div className="claim-actions">
-                  {humanPrompt.actions.map((action) => (
-                    <button
-                      key={action}
-                      className={action === 'win' ? 'danger' : action === 'pass' ? 'ghost' : ''}
-                      onClick={() => doResolvePrompt(action)}
-                    >
-                      {actionLabel(action)}
-                    </button>
-                  ))}
+                  {humanPrompt.actions
+                    .filter((action) => action !== 'ting' || game.phase !== 'discard')
+                    .map((action) => (
+                      <button
+                        key={action}
+                        className={action === 'win' ? 'danger' : action === 'pass' ? 'ghost' : ''}
+                        onClick={() => doResolvePrompt(action)}
+                      >
+                        {actionLabel(action)}
+                      </button>
+                    ))}
                 </div>
+                {humanPrompt.actions.includes('ting') && game.phase === 'discard' && (
+                  <div className="center-caption">请选择带“听”标记的牌打出，完成报听。</div>
+                )}
               </div>
             )}
           </div>
@@ -395,10 +417,12 @@ function App() {
         <section className="drawer-panel rules-panel">
           <h2>规则说明</h2>
           <ul>
-            <li>当前为单机简化哈尔滨麻将牌桌，重点先保证可玩与界面清晰。</li>
-            <li>基础和牌结构为 4 组面子 + 1 对将，也支持七对结算。</li>
-            <li>吃牌仅限上家弃牌；响应优先级为：胡 ＞ 杠 ＞ 碰 ＞ 吃。</li>
-            <li>日志与规则默认收起，主界面只保留关键牌桌信息。</li>
+            <li>当前为哈尔滨麻将 A 版：只有 1 张暗宝。</li>
+            <li>牌张为 112 张：万、条、筒、红中；不含风牌、发、白。</li>
+            <li>摸牌为自动进行，新摸到的牌会以“新”标记高亮。</li>
+            <li>必须先开门，再报听；报听时请选择一张带“听”标记的牌打出。</li>
+            <li>报听后只能打刚摸到的新牌；听牌后才能胡牌。</li>
+            <li>中央大牌池会汇总最近 24 张弃牌，更接近真实牌桌视图。</li>
           </ul>
         </section>
       )}
@@ -427,7 +451,9 @@ function SeatPanel({
           {player.name} · {seatWindLabel(player.seatWind)}位
         </span>
       </div>
-      <div className="seat-meta">手牌 {player.hand.length} · 分数 {score}</div>
+      <div className="seat-meta">
+        手牌 {player.hand.length} · 分数 {score} · {player.opened ? '已开门' : '未开门'} · {player.ting ? '已报听' : '未报听'}
+      </div>
       {children}
     </div>
   )

@@ -1,8 +1,11 @@
 import {
   canDeclareConcealedKong,
+  canDeclareTing,
   claimPriorityScore,
   findChowPatterns,
   findDiscardClaimOptions,
+  getTingDiscardOptions,
+  getWinningDrawsForTing,
   isJiaHuTile,
   meetsHarbinBasicHu,
   playerOrderDistance,
@@ -114,6 +117,7 @@ const settleWin = (state: GameState, winInfo: WinInfo, logText: string): GameSta
     scores,
     currentPrompt: null,
     claimQueue: [],
+    justDrawnTileId: null,
     log: [logText, ...state.log],
   }
 }
@@ -132,9 +136,8 @@ const buildDiscardClaimQueue = (state: GameState, discardedTile: Tile, discarder
       actions.push('win')
     }
 
-    if (!player.ting && player.opened && meetsHarbinBasicHu([...player.hand, discardedTile], true)) {
+    if (!player.ting && player.opened && canDeclareTing([...player.hand, discardedTile], true)) {
       actions.push('ting')
-      actions.push('win')
     }
 
     if (!player.ting) {
@@ -145,11 +148,18 @@ const buildDiscardClaimQueue = (state: GameState, discardedTile: Tile, discarder
 
     if (actions.length === 0) continue
     actions.push('pass')
+
+    const mergedHand = sortHand([...player.hand, discardedTile])
+    const tingDiscardOptions = actions.includes('ting')
+      ? getTingDiscardOptions(mergedHand, true).map((tile) => tile.id)
+      : undefined
+
     candidates.push({
       playerId: player.id,
       sourcePlayerId: discarderId,
       tile: discardedTile,
       actions,
+      tingDiscardOptions,
     })
   }
 
@@ -180,6 +190,7 @@ export const createInitialGameState = (): GameState => ({
   scores: [0, 0, 0, 0],
   assumptions: DEFAULT_ASSUMPTIONS,
   hiddenBaoTile: null,
+  justDrawnTileId: null,
 })
 
 export const restartGame = (): GameState => createInitialGameState()
@@ -220,6 +231,7 @@ export const startRound = (prev: GameState): GameState => {
     roundSettlement: null,
     assumptions: DEFAULT_ASSUMPTIONS,
     hiddenBaoTile,
+    justDrawnTileId: null,
     log: [
       `第 ${roundNumber} 局开始，${playerName(nextDealerId)}坐庄（${seatWindLabel(players[nextDealerId].seatWind)}位）。`,
       '本局采用 A 版规则：只有一张暗宝，必须开门后报听，听牌后才能胡。',
@@ -241,6 +253,7 @@ export const drawTile = (state: GameState): GameState => {
       roundSettlement: null,
       currentPrompt: null,
       claimQueue: [],
+      justDrawnTileId: null,
       log: ['本局流局（牌墙已摸完）。', ...state.log],
     }
   }
@@ -257,6 +270,7 @@ export const drawTile = (state: GameState): GameState => {
     currentPrompt: null,
     claimQueue: [],
     phase: 'discard',
+    justDrawnTileId: draw.id,
   }
 
   nextState = addLog(nextState, `${currentPlayer.name}摸到 ${tileLabel(draw)}。`)
@@ -267,16 +281,19 @@ export const drawTile = (state: GameState): GameState => {
       sourcePlayerId: currentPlayer.id,
       tile: draw,
       actions: ['win', 'pass'],
+      winningDraws: [draw],
     }
     return nextState
   }
 
-  if (!currentPlayer.ting && currentPlayer.opened && meetsHarbinBasicHu(currentPlayer.hand, true)) {
+  if (!currentPlayer.ting && currentPlayer.opened && canDeclareTing(currentPlayer.hand, true)) {
     nextState.currentPrompt = {
       playerId: currentPlayer.id,
       sourcePlayerId: currentPlayer.id,
       tile: draw,
       actions: ['ting', 'pass'],
+      tingDiscardOptions: getTingDiscardOptions(currentPlayer.hand, true).map((tile) => tile.id),
+      winningDraws: getWinningDrawsForTing(currentPlayer.hand.filter((tile) => tile.id !== draw.id), true),
     }
     return nextState
   }
@@ -355,6 +372,7 @@ export const declareConcealedKong = (state: GameState): GameState => {
       currentDrawnTile: null,
       currentPrompt: null,
       claimQueue: [],
+      justDrawnTileId: null,
     },
     `${player.name}暗杠 ${tileLabel(tile)}。`,
   )
@@ -367,6 +385,10 @@ export const discardTile = (state: GameState, tileId: string): GameState => {
   const currentPlayer = players[state.currentPlayerId]
   const tile = currentPlayer.hand.find((candidate) => candidate.id === tileId)
   if (!tile) return state
+
+  if (currentPlayer.ting && state.justDrawnTileId && tile.id !== state.justDrawnTileId) {
+    return state
+  }
 
   currentPlayer.hand = sortHand(currentPlayer.hand.filter((candidate) => candidate.id !== tile.id))
   currentPlayer.discards = [...currentPlayer.discards, tile]
@@ -384,6 +406,7 @@ export const discardTile = (state: GameState, tileId: string): GameState => {
     phase: prompt ? 'claimPrompt' : 'draw',
     currentPlayerId: prompt ? prompt.playerId : nextPlayerId(state.currentPlayerId),
     turnNumber: state.turnNumber + 1,
+    justDrawnTileId: null,
   }
 
   nextState = addLog(nextState, `${currentPlayer.name}打出 ${tileLabel(tile)}。`)
@@ -414,9 +437,7 @@ const claimTilesForMeld = (
   }
 
   const [pattern] = findChowPatterns(hand, discardedTile, true)
-  if (!pattern) {
-    return { tiles: [discardedTile], nextHand: hand }
-  }
+  if (!pattern) return { tiles: [discardedTile], nextHand: hand }
   const [ta, tb] = pattern
   return {
     tiles: [ta, discardedTile, tb],
@@ -493,6 +514,7 @@ export const resolveClaim = (
         claimQueue: [],
         currentPlayerId: claimerId,
         phase: 'discard',
+        justDrawnTileId: discardedTile.id,
       },
       `${claimer.name}报听 ${tileLabel(discardedTile)}。`,
     )
@@ -522,6 +544,7 @@ export const resolveClaim = (
       currentPlayerId: claimerId,
       phase: action === 'kong' ? 'draw' : 'discard',
       currentDrawnTile: null,
+      justDrawnTileId: null,
     },
     `${claimer.name}${actionLabel(action)}了 ${tileLabel(discardedTile)}。`,
   )
