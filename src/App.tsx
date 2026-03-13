@@ -225,7 +225,7 @@ function App() {
           <span>第 {game.roundNumber || 1} 局</span>
           <span>庄家：{game.players[game.dealerId].name}</span>
           <span>轮到：{currentPlayer.name}</span>
-          <span>牌墙：{game.wall.length} / 136</span>
+          <span>牌墙：{game.wall.length} / {game.assumptions.wallTileCount - 1}</span>
           <span>总分：你 {game.scores[0]} · 左家 {game.scores[1]} · 对家 {game.scores[2]} · 右家 {game.scores[3]}</span>
         </div>
       </section>
